@@ -1,0 +1,62 @@
+# HEIST ENGINE - Python Dependencies
+# Project: Operation First Blood
+# Engineer: MANE_25-10-20
+
+# ============================================
+# MODULE 1: THE EAR (Social Sentiment)
+# ============================================
+telethon==1.34.0          # Telegram API client
+discord.py==2.3.2         # Discord bot framework
+tweepy==4.14.0            # Twitter/X API client
+snscrape==0.7.0.20230622  # Twitter scraping (fallback)
+
+# ============================================
+# MODULE 2: THE EYE (Contract Auditor)
+# ============================================
+web3==6.11.3              # Ethereum blockchain interaction
+solana==0.30.2            # Solana blockchain interaction
+solders==0.18.1           # Solana SDK dependencies
+
+# ============================================
+# MODULE 3: THE HAND (Trade Execution)
+# ============================================
+# (uses web3 and solana from above)
+
+# ============================================
+# CORE UTILITIES
+# ============================================
+requests==2.31.0          # HTTP requests for APIs
+aiohttp==3.9.1            # Async HTTP for performance
+python-dotenv==1.0.0      # Environment variable management
+pandas==2.1.4             # Data analysis and manipulation
+numpy==1.26.2             # Numerical operations
+
+# ============================================
+# DATABASE & CACHING
+# ============================================
+psycopg2-binary==2.9.9    # PostgreSQL adapter
+redis==5.0.1              # Redis client for caching
+
+# ============================================
+# SECURITY & ENCRYPTION
+# ============================================
+cryptography==41.0.7      # Encryption for private keys
+pycryptodome==3.19.0      # Additional crypto utilities
+
+# ============================================
+# LOGGING & MONITORING
+# ============================================
+colorlog==6.8.0           # Colored logging output
+python-json-logger==2.0.7 # JSON structured logging
+
+# ============================================
+# TESTING
+# ============================================
+pytest==7.4.3             # Testing framework
+pytest-asyncio==0.21.1    # Async testing support
+
+# ============================================
+# UTILITIES
+# ============================================
+python-dateutil==2.8.2    # Date/time utilities
+pytz==2023.3.post1        # Timezone handling
