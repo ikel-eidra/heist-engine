@@ -7,11 +7,26 @@ Engineer: MANE_25-10-20
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
 import os
 
 app = FastAPI(title="Heist Engine API", version="1.0.0")
+
+# Add CORS middleware to allow Vercel dashboard access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://heist-dashboard-git-main-ikel-eidras-projects.vercel.app",
+        "https://*.vercel.app",
+        "http://localhost:*",
+        "http://127.0.0.1:*"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 async def root():
