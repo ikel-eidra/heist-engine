@@ -68,6 +68,7 @@ class EarConfig:
     # Operational settings
     SCAN_INTERVAL = int(os.getenv('SCAN_INTERVAL_SECONDS', '5'))
     MIN_HYPE_SCORE = int(os.getenv('MIN_HYPE_SCORE', '70'))
+    SIMULATION_MODE = os.getenv('SIMULATION_MODE', 'false').lower() == 'true'
     
     # Target channels (from Chimera's intelligence)
     TELEGRAM_CHANNELS = [
@@ -480,6 +481,10 @@ class TheEar:
             
             # Periodic cleanup of old data
             await self._cleanup_old_data()
+            
+            # Simulation mode
+            if self.config.SIMULATION_MODE:
+                await self._simulate_signals()
     
     async def stop(self):
         """Stop listening"""
@@ -521,6 +526,45 @@ class TheEar:
     def get_token_metrics(self, contract_address: str) -> Optional[HypeMetrics]:
         """Get metrics for a specific token"""
         return self.token_metrics.get(contract_address)
+
+    async def _simulate_signals(self):
+        """Generate fake signals for testing"""
+        import random
+        
+        # 50% chance to generate a signal every scan interval
+        if random.random() > 0.5:
+            return
+            
+        # Generate fake data
+        fake_tokens = ['PEPE', 'DOGE', 'SHIB', 'FLOKI', 'BONK', 'WIF', 'BOME']
+        fake_sources = ['@wolfxsignals', '@BinanceKillers', 'Degen_Callerz', 'Defi_Warhol']
+        
+        token = random.choice(fake_tokens)
+        source = random.choice(fake_sources)
+        chain = 'ethereum' if random.random() > 0.5 else 'solana'
+        
+        # Generate fake address
+        if chain == 'ethereum':
+            addr = f"0x{random.getrandbits(160):040x}"
+        else:
+            chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+            addr = "".join(random.choice(chars) for _ in range(44))
+            
+        hype = random.uniform(60, 100)
+        
+        signal = TokenSignal(
+            token_name=token,
+            contract_address=addr,
+            chain=chain,
+            source_platform='simulation',
+            source_channel=source,
+            message_text=f"SIMULATED SIGNAL: Buy ${token} now! {addr} LFG!!! 🚀🚀🚀",
+            hype_score=hype,
+            timestamp=datetime.now()
+        )
+        
+        if hype >= self.config.MIN_HYPE_SCORE:
+            await self._handle_signal(signal)
 
 
 # ============================================
