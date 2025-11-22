@@ -66,6 +66,9 @@ class EyeConfig:
     HONEYPOT_API_URL = 'https://api.honeypot.is/v2/IsHoneypot'
     RUGCHECK_API_URL = 'https://api.rugcheck.xyz/v1/tokens'
     DEXTOOLS_API_URL = 'https://api.dextools.io/v1/token'
+    
+    # Simulation settings
+    SIMULATION_MODE = os.getenv('SIMULATION_MODE', 'false').lower() == 'true'
 
 
 # ============================================
@@ -248,6 +251,10 @@ class TheEye:
         """
         self.logger.info(f"🔍 Auditing {chain} contract: {contract_address}")
         
+        # Simulation mode
+        if self.config.SIMULATION_MODE:
+            return await self._simulate_audit(contract_address, chain)
+        
         # Check cache first
         cache_key = f"{chain}:{contract_address}"
         if cache_key in self.audit_cache:
@@ -300,6 +307,41 @@ class TheEye:
             ))
             return audit
     
+    async def _simulate_audit(self, contract_address: str, chain: str) -> ContractAudit:
+        """Simulate a contract audit"""
+        import random
+        
+        # 80% chance to be safe
+        is_safe = random.random() < 0.8
+        
+        audit = ContractAudit(
+            contract_address=contract_address,
+            chain=chain,
+            is_safe=is_safe,
+            safety_score=random.uniform(85, 99) if is_safe else random.uniform(10, 60),
+            risk_level=RiskLevel.SAFE if is_safe else RiskLevel.HIGH,
+            token_symbol="SIM",
+            liquidity_usd=random.uniform(50000, 500000),
+            buy_tax=0 if is_safe else 20,
+            sell_tax=0 if is_safe else 20
+        )
+        
+        audit.checks.append(SecurityCheck(
+            name="Simulation Check",
+            passed=is_safe,
+            score=audit.safety_score,
+            details="Simulated audit result",
+            severity=RiskLevel.LOW if is_safe else RiskLevel.CRITICAL
+        ))
+        
+        self.logger.info(
+            f"{'✅' if is_safe else '❌'} Simulated Audit | "
+            f"Score: {audit.safety_score:.1f}/100 | "
+            f"Risk: {audit.risk_level.value}"
+        )
+        
+        return audit
+
     # ============================================
     # ETHEREUM ANALYSIS
     # ============================================

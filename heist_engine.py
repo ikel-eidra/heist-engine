@@ -179,6 +179,7 @@ class HeistEngine:
         
         # Start background tasks
         tasks = [
+            asyncio.create_task(self.ear.start()),
             asyncio.create_task(self._signal_processor()),
             asyncio.create_task(self.hand.monitor_positions()),
             asyncio.create_task(self._status_reporter()),
@@ -364,6 +365,10 @@ class HeistEngine:
         self.logger.info("✅ Heist Engine shutdown complete")
 
 
+# Import API module
+import web_api
+import uvicorn
+
 # ============================================
 # MAIN EXECUTION
 # ============================================
@@ -374,6 +379,9 @@ async def main():
     # Create engine
     engine = HeistEngine()
     
+    # Register engine with API
+    web_api.set_engine(engine)
+    
     # Setup signal handlers for graceful shutdown
     def signal_handler(sig, frame):
         engine.logger.info(f"Received signal {sig}")
@@ -382,14 +390,38 @@ async def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
-    # Initialize and run
+    # Configure API server
+    port = int(os.environ.get("PORT", 10000))
+    config = uvicorn.Config(web_api.app, host="0.0.0.0", port=port, log_level="info")
+    server = uvicorn.Server(config)
+    
+    engine.logger.info(f"🚀 Starting API server on port {port}...")
+    
+    # Define startup task
+    async def start_engine():
+        try:
+            # Wait a bit for server to start
+            await asyncio.sleep(2)
+            engine.logger.info("🔄 Starting Engine Initialization...")
+            await engine.initialize()
+            
+            # Start engine loop
+            if engine.ear and engine.eye and engine.hand:
+                await engine.run()
+            else:
+                engine.logger.error("❌ Engine initialization failed (missing modules)")
+        except Exception as e:
+            engine.logger.error(f"❌ Engine startup error: {e}", exc_info=True)
+
+    # Run API and Engine concurrently
+    # We start the server, and use create_task for the engine so it doesn't block server startup
+    server_task = asyncio.create_task(server.serve())
+    engine_task = asyncio.create_task(start_engine())
+    
     try:
-        await engine.initialize()
-        await engine.run()
-    except KeyboardInterrupt:
-        engine.logger.info("Keyboard interrupt received")
-    except Exception as e:
-        engine.logger.error(f"Fatal error: {e}", exc_info=True)
+        await asyncio.gather(server_task, engine_task)
+    except asyncio.CancelledError:
+        engine.logger.info("Main task cancelled")
     finally:
         await engine.shutdown()
 

@@ -148,7 +148,7 @@ class EarConfig:
 @dataclass
 class TokenSignal:
     """Represents a detected token signal"""
-    token_name: Optional[str] = None
+    token_symbol: Optional[str] = None
     contract_address: Optional[str] = None
     chain: Optional[str] = None  # 'ethereum', 'solana', 'bsc', etc.
     source_platform: str = ''  # 'telegram', 'discord', 'twitter'
@@ -161,7 +161,7 @@ class TokenSignal:
     def to_dict(self) -> Dict:
         """Convert to dictionary for JSON serialization"""
         return {
-            'token_name': self.token_name,
+            'token_symbol': self.token_symbol,
             'contract_address': self.contract_address,
             'chain': self.chain,
             'source_platform': self.source_platform,
@@ -230,6 +230,8 @@ class TheEar:
     async def initialize(self):
         """Initialize all platform connections"""
         self.logger.info("🎧 Initializing The Ear...")
+        self.logger.info(f"   - Simulation Mode: {self.config.SIMULATION_MODE}")
+        self.logger.info(f"   - Min Hype Score: {self.config.MIN_HYPE_SCORE}")
         
         await self._init_telegram()
         await self._init_discord()
@@ -553,7 +555,7 @@ class TheEar:
         hype = random.uniform(60, 100)
         
         signal = TokenSignal(
-            token_name=token,
+            token_symbol=token,
             contract_address=addr,
             chain=chain,
             source_platform='simulation',
