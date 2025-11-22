@@ -1,1 +1,1 @@
-worker: python heist_engine.py
+web: python heist_engine.py
