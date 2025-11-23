@@ -19,6 +19,7 @@ colorlog==6.8.0           # Colored logging output
 # ============================================
 fastapi==0.104.1          # Fast API framework
 uvicorn==0.24.0           # ASGI server
+websockets==12.0          # WebSocket support for chat
 
 # ============================================
 # AI/ML (for intelligent trading decisions)
