@@ -1,12 +1,18 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
+import json
 from typing import Optional, Dict, List
+from datetime import datetime
+
+# Import chat system
+from chat_system import get_chat_coordinator, ChatMessage, AgentType
 
 # Global reference to the running engine
 # This will be set by heist_engine.py when it starts
 engine_instance = None
+chat = get_chat_coordinator()
 
 def set_engine(engine):
     """Set the global engine instance"""
@@ -101,6 +107,46 @@ async def stop_engine():
     
     await engine_instance.shutdown()
     return {"message": "Engine shutdown initiated"}
+
+@app.websocket("/ws/chat")
+async def websocket_chat(websocket: WebSocket):
+    """WebSocket endpoint for multi-agent chat"""
+    await websocket.accept()
+    await chat.connect(websocket)
+    
+    try:
+        while True:
+            # Receive message from client
+            data = await websocket.receive_text()
+            
+            try:
+                msg_data = json.loads(data)
+                user_message = msg_data.get("message", "")
+                
+                # Echo user message to all clients
+                await chat.broadcast(ChatMessage(
+                    agent=AgentType.USER.value,
+                    message=user_message,
+                    timestamp=datetime.now().isoformat()
+                ))
+                
+                # Handle message and get response
+                response = await chat.handle_user_message(user_message)
+                
+                # Send response
+                await chat.agent_message(
+                    AgentType.SYSTEM,
+                    response
+                )
+                
+            except json.JSONDecodeError:
+                await chat.agent_message(
+                    AgentType.SYSTEM,
+                    "Invalid message format. Please send JSON."
+                )
+                
+    except WebSocketDisconnect:
+        await chat.disconnect(websocket)
 
 if __name__ == "__main__":
     # Standalone run (mostly for testing API without engine)
