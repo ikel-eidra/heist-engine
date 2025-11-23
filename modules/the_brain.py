@@ -9,6 +9,13 @@ from typing import Dict, Optional, List
 from dataclasses import dataclass
 import asyncio
 
+# Import chat system
+try:
+    from chat_system import get_chat_coordinator, AgentType
+    CHAT_AVAILABLE = True
+except ImportError:
+    CHAT_AVAILABLE = False
+
 try:
     from groq import AsyncGroq
     GROQ_AVAILABLE = True
@@ -97,6 +104,9 @@ class TheBrain:
         # Memory system
         self.memory = TradingMemory()
         
+        # Chat system
+        self.chat = get_chat_coordinator(logger=self.logger) if CHAT_AVAILABLE else None
+        
         # Configuration
         self.min_confidence = float(os.getenv("AI_MIN_CONFIDENCE", "0.70"))
         self.max_position_size = float(os.getenv("AI_MAX_POSITION", "0.10"))  # 10% max
@@ -130,6 +140,14 @@ class TheBrain:
             return self._fallback_decision(signal, audit)
         
         try:
+            # Announce to chat that we're analyzing
+            token = signal.get('token_symbol', 'Unknown')
+            if self.chat:
+                await self.chat.agent_message(
+                    AgentType.BRAIN,
+                    f"🧠 Analyzing {token}..."
+                )
+            
             # Build analysis prompt
             prompt = self._build_prompt(signal, audit, market_context)
             
@@ -154,6 +172,20 @@ class TheBrain:
             ai_text = response.choices[0].message.content
             decision = self._parse_ai_response(ai_text)
             
+            # Broadcast decision to chat
+            if self.chat:
+                await self.chat.agent_message(
+                    AgentType.BRAIN,
+                    f"**Decision: {decision.action}**\n"
+                    f"Confidence: {decision.confidence:.0%}\n"
+                    f"Reasoning: {decision.reasoning}",
+                    metadata={
+                        "token": token,
+                        "action": decision.action,
+                        "confidence": decision.confidence
+                    }
+                )
+            
             self.logger.info(
                 f"🧠 AI Decision: {decision.action} "
                 f"(confidence: {decision.confidence:.2f}) - {decision.reasoning[:50]}..."
@@ -163,6 +195,11 @@ class TheBrain:
             
         except Exception as e:
             self.logger.error(f"🧠 AI analysis failed: {e}")
+            if self.chat:
+                await self.chat.agent_message(
+                    AgentType.BRAIN,
+                    f"⚠️ Analysis failed: {str(e)[:100]}"
+                )
             return self._fallback_decision(signal, audit)
     
     def _get_system_prompt(self) -> str:
