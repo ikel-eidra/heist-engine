@@ -19,10 +19,11 @@ from typing import Optional
 from datetime import datetime
 from pathlib import Path
 
-# Import our three modules
+# Import our four modules
 from modules.the_ear import TheEar, TokenSignal
 from modules.the_eye import TheEye, ContractAudit
 from modules.the_hand import TheHand, TradeResult
+from modules.the_brain import TheBrain, AIDecision
 
 from dotenv import load_dotenv
 import os
@@ -75,6 +76,7 @@ class HeistEngine:
         self.ear: Optional[TheEar] = None
         self.eye: Optional[TheEye] = None
         self.hand: Optional[TheHand] = None
+        self.brain: Optional[TheBrain] = None  # AI Decision Engine
         
         # State
         self.is_running = False
@@ -157,6 +159,10 @@ class HeistEngine:
         self.logger.info("Initializing Module 3: The Hand...")
         self.hand = TheHand()
         await self.hand.initialize()
+        
+        # Initialize The Brain (AI Decision Engine)
+        self.logger.info("Initializing Module 4: The Brain...")
+        self.brain = TheBrain(logger=self.logger)
         
         self.logger.info("="*60)
         self.logger.info("✅ ALL SYSTEMS OPERATIONAL")
@@ -272,8 +278,74 @@ class HeistEngine:
             f"Liquidity: ${audit.liquidity_usd:,.0f}"
         )
         
-        # Step 3: Execute trade with The Hand
-        self.logger.info(f"💰 Executing BUY order...")
+        # Step 3: AI Decision (The Brain analyzes the signal)
+        self.logger.info(f"🧠 Consulting AI Brain for decision...")
+        
+        # Prepare signal dict for AI
+        signal_dict = {
+            "token_symbol": signal.token_symbol,
+            "contract_address": signal.contract_address,
+            "chain": signal.chain,
+            "source_platform": signal.source_platform,
+            "source_channel": signal.source_channel,
+            "message_text": signal.message_text,
+            "hype_score": signal.hype_score
+        }
+        
+        # Prepare audit dict for AI
+        audit_dict = {
+            "is_safe": audit.is_safe,
+            "safety_score": audit.safety_score,
+            "risk_level": audit.risk_level.value,
+            "liquidity_usd": audit.liquidity_usd,
+            "buy_tax": audit.buy_tax,
+            "sell_tax": audit.sell_tax,
+            "checks": [
+                {
+                    "name": check.name,
+                    "passed": check.passed,
+                    "score": check.score,
+                    "details": check.details
+                }
+                for check in audit.checks
+            ]
+        }
+        
+        # Get AI decision
+        ai_decision = await self.brain.analyze_signal(
+            signal=signal_dict,
+            audit=audit_dict,
+            market_context=None  # TODO: Add market context in future
+        )
+        
+        # Log AI decision
+        self.logger.info(
+            f"🧠 AI Decision: {ai_decision.action} | "
+            f"Confidence: {ai_decision.confidence:.2f} | "
+            f"Reasoning: {ai_decision.reasoning[:100]}..."
+        )
+        
+        # Check AI decision
+        if ai_decision.action == "SKIP":
+            self.logger.info(f"⏭️  AI RECOMMENDS SKIP - {ai_decision.reasoning}")
+            return
+        
+        if ai_decision.action == "WAIT":
+            self.logger.info(f"⏸️  AI RECOMMENDS WAIT - {ai_decision.reasoning}")
+            return
+        
+        # AI says BUY! Check confidence threshold
+        min_confidence = float(os.getenv("AI_MIN_CONFIDENCE", "0.70"))
+        if ai_decision.confidence < min_confidence:
+            self.logger.info(
+                f"⏭️  Confidence too low ({ai_decision.confidence:.2f} < {min_confidence})"
+            )
+            return
+        
+        # Step 4: Execute trade with The Hand
+        self.logger.info(
+            f"💰 Executing BUY order (confidence: {ai_decision.confidence:.2f})..."
+        )
         
         result = await self.hand.execute_buy(
             contract_address=signal.contract_address,
@@ -292,11 +364,12 @@ class HeistEngine:
             
             # Send notification
             await self._send_notification(
-                f"🎯 NEW POSITION OPENED\n"
-                f"Token: {result.position.token_symbol}\n"
-                f"Entry: ${result.position.entry_price:.8f}\n"
-                f"Amount: ${result.position.entry_amount_usd:.2f}\n"
-                f"Target: +{self.hand.config.PROFIT_TARGET_PERCENT}%"
+                f"🎯 NEW POSITION OPENED\\n"
+                f"Token: {result.position.token_symbol}\\n"
+                f"Entry: ${result.position.entry_price:.8f}\\n"
+                f"Amount: ${result.position.entry_amount_usd:.2f}\\n"
+                f"Target: +{self.hand.config.PROFIT_TARGET_PERCENT}%\\n"
+                f"AI Confidence: {ai_decision.confidence:.0%}"
             )
         else:
             self.logger.error(f"❌ TRADE FAILED: {result.error_message}")
