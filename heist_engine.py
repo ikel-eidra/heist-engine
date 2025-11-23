@@ -162,7 +162,12 @@ class HeistEngine:
         
         # Initialize The Brain (AI Decision Engine)
         self.logger.info("Initializing Module 4: The Brain...")
-        self.brain = TheBrain(logger=self.logger)
+        try:
+            self.brain = TheBrain(logger=self.logger)
+            self.logger.info("✅ The Brain initialized successfully")
+        except Exception as e:
+            self.logger.warning(f"⚠️ The Brain disabled due to error: {e}")
+            self.brain = None
         
         self.logger.info("="*60)
         self.logger.info("✅ ALL SYSTEMS OPERATIONAL")
@@ -281,26 +286,32 @@ class HeistEngine:
         # Step 3: AI Decision (The Brain analyzes the signal)
         self.logger.info(f"🧠 Consulting AI Brain for decision...")
         
-        # Prepare signal dict for AI
-        signal_dict = {
-            "token_symbol": signal.token_symbol,
-            "contract_address": signal.contract_address,
-            "chain": signal.chain,
-            "source_platform": signal.source_platform,
-            "source_channel": signal.source_channel,
-            "message_text": signal.message_text,
-            "hype_score": signal.hype_score
-        }
-        
-        # Prepare audit dict for AI
-        audit_dict = {
-            "is_safe": audit.is_safe,
-            "safety_score": audit.safety_score,
-            "risk_level": audit.risk_level.value,
-            "liquidity_usd": audit.liquidity_usd,
-            "buy_tax": audit.buy_tax,
-            "sell_tax": audit.sell_tax,
-            "checks": [
+        # Check if Brain is available
+        if not self.brain:
+            self.logger.warning("⚠️ Brain not available, using default BUY decision")
+            decision = {"action": "BUY", "confidence": 70, "reasoning": "Auto-approved (Brain disabled)"}
+            position_size_usd = 10  # Default position size
+        else:
+            # Prepare signal dict for AI
+            signal_dict = {
+                "token_symbol": signal.token_symbol,
+                "contract_address": signal.contract_address,
+                "chain": signal.chain,
+                "source_platform": signal.source_platform,
+                "source_channel": signal.source_channel,
+                "message_text": signal.message_text,
+                "hype_score": signal.hype_score
+            }
+            
+            # Prepare audit dict for AI
+            audit_dict = {
+                "is_safe": audit.is_safe,
+                "safety_score": audit.safety_score,
+                "risk_level": audit.risk_level.value,
+                "liquidity_usd": audit.liquidity_usd,
+                "buy_tax": audit.buy_tax,
+                "sell_tax": audit.sell_tax,
+                "checks": [
                 {
                     "name": check.name,
                     "passed": check.passed,
@@ -311,40 +322,48 @@ class HeistEngine:
             ]
         }
         
-        # Get AI decision
-        ai_decision = await self.brain.analyze_signal(
-            signal=signal_dict,
-            audit=audit_dict,
-            market_context=None  # TODO: Add market context in future
-        )
-        
-        # Log AI decision
-        self.logger.info(
-            f"🧠 AI Decision: {ai_decision.action} | "
-            f"Confidence: {ai_decision.confidence:.2f} | "
-            f"Reasoning: {ai_decision.reasoning[:100]}..."
-        )
+            # Get AI decision
+            ai_decision = await self.brain.analyze_signal(
+                signal=signal_dict,
+                audit=audit_dict,
+                market_context=None  # TODO: Add market context in future
+            )
+            
+            # Log AI decision
+            self.logger.info(
+                f"🧠 AI Decision: {ai_decision.action} | "
+                f"Confidence: {ai_decision.confidence:.2f} | "
+                f"Reasoning: {ai_decision.reasoning[:100]}..."
+            )
+            
+            # Convert to dict for trade execution
+            decision = {
+                "action": ai_decision.action,
+                "confidence": ai_decision.confidence,
+                "reasoning": ai_decision.reasoning
+            }
+            position_size_usd = ai_decision.position_size_usd
         
         # Check AI decision
-        if ai_decision.action == "SKIP":
-            self.logger.info(f"⏭️  AI RECOMMENDS SKIP - {ai_decision.reasoning}")
+        if decision["action"] == "SKIP":
+            self.logger.info(f"⏭️  AI RECOMMENDS SKIP - {decision['reasoning']}")
             return
         
-        if ai_decision.action == "WAIT":
-            self.logger.info(f"⏸️  AI RECOMMENDS WAIT - {ai_decision.reasoning}")
+        if decision["action"] == "WAIT":
+            self.logger.info(f"⏸️  AI RECOMMENDS WAIT - {decision['reasoning']}")
             return
         
         # AI says BUY! Check confidence threshold
         min_confidence = float(os.getenv("AI_MIN_CONFIDENCE", "0.70"))
-        if ai_decision.confidence < min_confidence:
+        if decision["confidence"] < min_confidence:
             self.logger.info(
-                f"⏭️  Confidence too low ({ai_decision.confidence:.2f} < {min_confidence})"
+                f"⏭️  Confidence too low ({decision['confidence']:.2f} < {min_confidence})"
             )
             return
         
         # Step 4: Execute trade with The Hand
         self.logger.info(
-            f"💰 Executing BUY order (confidence: {ai_decision.confidence:.2f})..."
+            f"💰 Executing BUY order (confidence: {decision['confidence']:.2f})..."
         )
         
         result = await self.hand.execute_buy(
@@ -369,7 +388,7 @@ class HeistEngine:
                 f"Entry: ${result.position.entry_price:.8f}\\n"
                 f"Amount: ${result.position.entry_amount_usd:.2f}\\n"
                 f"Target: +{self.hand.config.PROFIT_TARGET_PERCENT}%\\n"
-                f"AI Confidence: {ai_decision.confidence:.0%}"
+                f"AI Confidence: {decision['confidence']:.0%}"
             )
         else:
             self.logger.error(f"❌ TRADE FAILED: {result.error_message}")
