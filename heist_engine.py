@@ -24,6 +24,7 @@ from modules.the_ear import TheEar, TokenSignal
 from modules.the_eye import TheEye, ContractAudit
 from modules.the_hand import TheHand, TradeResult
 from modules.the_brain import TheBrain, AIDecision
+from chat_system import get_chat_coordinator, AgentType
 
 from dotenv import load_dotenv
 import os
@@ -168,6 +169,15 @@ class HeistEngine:
         except Exception as e:
             self.logger.warning(f"⚠️ The Brain disabled due to error: {e}")
             self.brain = None
+            
+        # Register agents with Chat Coordinator
+        chat_coordinator = get_chat_coordinator(self.logger)
+        await chat_coordinator.register_agent(AgentType.EAR, self.ear)
+        await chat_coordinator.register_agent(AgentType.EYE, self.eye)
+        await chat_coordinator.register_agent(AgentType.HAND, self.hand)
+        
+        if self.brain:
+            await chat_coordinator.register_agent(AgentType.BRAIN, self.brain)
         
         self.logger.info("="*60)
         self.logger.info("✅ ALL SYSTEMS OPERATIONAL")
