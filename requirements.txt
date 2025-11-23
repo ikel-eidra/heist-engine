@@ -24,7 +24,7 @@ websockets==12.0          # WebSocket support for chat
 # ============================================
 # AI/ML (for intelligent trading decisions)
 # ============================================
-groq==0.11.0               # Groq API for AI decision engine
+groq>=0.18.0             # Groq API for AI decision engine
 
 # ============================================
 # SOCIAL MONITORING (for signal detection)
