@@ -96,7 +96,7 @@ class TheBrain:
         
         if self.enabled:
             self.client = AsyncGroq(api_key=self.groq_api_key)
-            self.model = os.getenv("GROQ_MODEL", "llama-3.1-70b-versatile")
+            self.model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
             self.logger.info(f"🧠 The Brain initialized with {self.model}")
         else:
             self.logger.warning("🧠 The Brain disabled - missing Groq API key or package")
