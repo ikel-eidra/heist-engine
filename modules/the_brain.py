@@ -347,3 +347,43 @@ Should we trade this signal?"""
             f"🧠 Learning: {signal.get('token_symbol')} = {result} "
            f"(PnL: {pnl:+.1f}%, Success Rate: {self.memory.get_success_rate()*100:.1f}%)"
         )
+
+    async def analyze_message(self, message: str) -> str:
+        """"""
+        Analyze a user chat message using AI
+        
+        Args:
+            message: User's message
+            
+        Returns:
+            AI response string
+        """"""
+        if not self.enabled:
+            return "I'm currently offline. AI features are disabled."
+        
+        try:
+            # Call Groq API for chat
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """"""You are The Brain, an AI trading assistant for the Heist Engine crypto trading bot.
+You help users understand trading signals, market analysis, and system decisions.
+Be concise, helpful, and professional. Use emojis sparingly.""""""
+                    },
+                    {
+                        "role": "user",
+                        "content": message
+                    }
+                ],
+                temperature=0.7,
+                max_tokens=200
+            )
+            
+            ai_response = response.choices[0].message.content
+            return ai_response.strip()
+            
+        except Exception as e:
+            self.logger.error(f"🧠 Chat analysis failed: {e}")
+            return f"I encountered an error: {str(e)[:100]}"

@@ -161,9 +161,18 @@ class ChatCoordinator:
         if "help" in message_lower:
             return self._get_help_message()
         
-        # Route to specific agent if mentioned
+        # Route to specific agent if mentioned - FIXED TO CALL ACTUAL AI
         if "brain" in message_lower and "brain" in self.agents:
-            return f"🧠 Brain: I hear you! Let me analyze that..."
+            brain = self.agents["brain"]
+            if hasattr(brain, 'analyze_message'):
+                try:
+                    response = await brain.analyze_message(message)
+                    return f"🧠 Brain: {response}"
+                except Exception as e:
+                    self.logger.error(f"Brain error: {e}")
+                    return f"🧠 Brain: I'm processing your request... Error: {str(e)[:100]}"
+            else:
+                return f"🧠 Brain: I hear you! Let me analyze that..."
         
         if any(word in message_lower for word in ["signal", "ear", "listening"]):
             return "🎧 Ear: Monitoring channels for signals..."
