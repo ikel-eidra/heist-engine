@@ -32,6 +32,18 @@ import os
 # Load environment variables
 load_dotenv()
 
+# Autonomous Brain System
+try:
+    from modules.autonomous.position_sizer import AdaptivePositionSizer, PositionSizingStrategy
+    from modules.autonomous.brain import AutonomousBrain  
+    from modules.autonomous.trainer import TrainingScheduler
+    from modules.autonomous.approval import ApprovalSystem, KillSwitch
+    AUTONOMOUS_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Autonomous features not available: {e}")
+    AUTONOMOUS_AVAILABLE = False
+
+
 
 # ============================================
 # CONFIGURATION
@@ -87,6 +99,14 @@ class HeistEngine:
         self.signals_detected = 0
         self.signals_passed_audit = 0
         self.trades_executed = 0
+
+        # Autonomous capabilities
+        self.position_sizer = None
+        self.autonomous_brain = None
+        self.trainer = None
+        self.approval_system = None
+        self.kill_switch = KillSwitch() if AUTONOMOUS_AVAILABLE else None
+
         
     def _setup_logging(self):
         """Setup comprehensive logging system"""
@@ -178,6 +198,39 @@ class HeistEngine:
         
         if self.brain:
             await chat_coordinator.register_agent(AgentType.BRAIN, self.brain)
+
+        # Initialize Autonomous Features
+        if AUTONOMOUS_AVAILABLE:
+            try:
+                # Position Sizer
+                self.logger.info("Initializing Position Sizer...")
+                strategy_name = os.getenv('POSITION_SIZING_STRATEGY', 'balanced')
+                self.position_sizer = AdaptivePositionSizer(PositionSizingStrategy(strategy_name))
+                self.logger.info(f"✅ Position Sizer: {strategy_name}")
+                
+                # Pass sizer to hand
+                if self.hand:
+                    self.hand.position_sizer = self.position_sizer
+                
+                # Autonomous Brain
+                self.logger.info("🧠 Starting Autonomous Brain...")
+                self.autonomous_brain = AutonomousBrain()
+                asyncio.create_task(self.autonomous_brain.start())
+                self.logger.info("✅ Autonomous Brain active")
+                
+                # Trainer
+                training_time = os.getenv('TRAINING_TIME', '23:00')
+                self.trainer = TrainingScheduler(training_time=training_time)
+                self.logger.info(f"✅ Daily training: {training_time}")
+                
+                # Approval
+                self.approval_system = ApprovalSystem()
+                await self.approval_system.initialize()
+                self.logger.info("✅ Approval system ready")
+                
+            except Exception as e:
+                self.logger.warning(f"⚠️ Autonomous features error: {e}")
+
         
         self.logger.info("="*60)
         self.logger.info("✅ ALL SYSTEMS OPERATIONAL")
