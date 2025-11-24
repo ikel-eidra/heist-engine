@@ -345,21 +345,21 @@ Should we trade this signal?"""
         
         self.logger.info(
             f"🧠 Learning: {signal.get('token_symbol')} = {result} "
-           f"(PnL: {pnl:+.1f}%, Success Rate: {self.memory.get_success_rate()*100:.1f}%)"
+            f"(PnL: {pnl:+.1f}%, Success Rate: {self.memory.get_success_rate()*100:.1f}%)"
         )
-
+    
     async def analyze_message(self, message: str) -> str:
-        """"""
+        """
         Analyze a user chat message using AI
         
         Args:
-            message: User's message
+            message: User message text
             
         Returns:
             AI response string
-        """"""
+        """
         if not self.enabled:
-            return "I'm currently offline. AI features are disabled."
+            return "I am currently offline. AI features are disabled."
         
         try:
             # Call Groq API for chat
@@ -368,9 +368,7 @@ Should we trade this signal?"""
                 messages=[
                     {
                         "role": "system",
-                        "content": """"""You are The Brain, an AI trading assistant for the Heist Engine crypto trading bot.
-You help users understand trading signals, market analysis, and system decisions.
-Be concise, helpful, and professional. Use emojis sparingly.""""""
+                        "content": "You are The Brain, an AI trading assistant for the Heist Engine crypto trading bot. You help users understand trading signals, market analysis, and system decisions. Be concise, helpful, and professional. Use emojis sparingly."
                     },
                     {
                         "role": "user",
